@@ -6,65 +6,79 @@ function isLoggedIn(): bool {
     return !empty($_SESSION['user_id']);
 }
 
-function requireLogin() {
+function requireLogin(): void {
     if (!isLoggedIn()) {
-        header('Location: login.php');
+        $base = rtrim(APP_BASE_URL ?? '/', '/');
+        header('Location: ' . ($base === '' ? '/' : $base . '/') . 'login.php');
         exit;
     }
 }
 
+
 function loginUser(string $email, string $password, array &$errors = []): bool {
     global $pdo;
-    $stmt = $pdo->prepare("SELECT id, password_hash FROM crm_users WHERE email = :email");
+
+    $email = trim(mb_strtolower($email));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = 'Неверный e-mail или пароль.';
+        return false;
+    }
+    $stmt = $pdo->prepare("SELECT id, password_hash FROM crm_users WHERE LOWER(email) = :email");
     $stmt->execute([':email' => $email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $user = $stmt->fetch();
+
     if ($user && password_verify($password, $user['password_hash'])) {
-        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['user_id'] = (int)$user['id'];
         return true;
     }
     $errors[] = 'Неверный e-mail или пароль.';
     return false;
 }
 
-function registerUser(array $data, array &$errors = []): bool {
+function registerUser(array $d, array &$errors = []): bool {
     global $pdo;
-    // валидация
-    foreach (['last_name','first_name','email','phone','company','domain','password','password_confirm'] as $f) {
-        if (empty($data[$f])) {
-            $errors[] = "Заполните «{$f}».";
-        }
-    }
-    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Неправильный e-mail.';
-    }
-    if ($data['password'] !== $data['password_confirm']) {
-        $errors[] = 'Пароли не совпадают.';
-    }
+
+    $full  = trim($d['full_name'] ?? '');
+    $email = trim(mb_strtolower($d['email'] ?? ''));
+    $phone = trim($d['phone'] ?? '');
+    $comp  = trim($d['company_name'] ?? '');
+    $pass  = (string)($d['password'] ?? '');
+    $pass2 = (string)($d['password_confirm'] ?? '');
+
+    if ($full === '')   $errors[] = 'Укажите имя и фамилию.';
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Неверный e-mail.';
+    if ($phone === '')  $errors[] = 'Укажите номер телефона.';
+    if ($comp === '')   $errors[] = 'Укажите название компании.';
+    if (strlen($pass) < 6) $errors[] = 'Пароль должен быть не менее 6 символов.';
+    if ($pass !== $pass2)  $errors[] = 'Пароли не совпадают.';
+
     if ($errors) return false;
 
-    // проверяем дубликаты
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM crm_users WHERE email = :email");
-    $stmt->execute([':email'=>$data['email']]);
-    if ($stmt->fetchColumn() > 0) {
+    // дубликат по e-mail
+    $dup = $pdo->prepare("SELECT 1 FROM crm_users WHERE LOWER(email) = :email LIMIT 1");
+    $dup->execute([':email' => $email]);
+    if ($dup->fetch()) {
         $errors[] = 'Пользователь с таким e-mail уже существует.';
         return false;
     }
 
-    $hash = password_hash($data['password'], PASSWORD_DEFAULT);
+    $hash = password_hash($pass, PASSWORD_DEFAULT);
+
+    // Вставка и возврат id
     $sql = "INSERT INTO crm_users
-      (last_name, first_name, email, phone, company_name, domain_name, password_hash)
-      VALUES
-      (:last_name, :first_name, :email, :phone, :company, :domain, :hash)";
+            (full_name, email, phone, company_name, password_hash)
+            VALUES (:full, :email, :phone, :comp, :hash)
+            RETURNING id";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
-        ':last_name'=>$data['last_name'],
-        ':first_name'=>$data['first_name'],
-        ':email'=>$data['email'],
-        ':phone'=>$data['phone'],
-        ':company'=>$data['company'],
-        ':domain'=>$data['domain'],
-        ':hash'=>$hash,
+        ':full'  => $full,
+        ':email' => $email,
+        ':phone' => $phone,
+        ':comp'  => $comp,
+        ':hash'  => $hash,
     ]);
-    $_SESSION['user_id'] = $pdo->lastInsertId();
+    $id = (int)$stmt->fetchColumn();
+
+    $_SESSION['user_id'] = $id;
     return true;
 }
