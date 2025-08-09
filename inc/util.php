@@ -56,3 +56,14 @@ function paginate(int $total, int $page, int $perPage, string $baseUrl): string 
 function url(string $path): string {
     return rtrim(APP_BASE_URL, '/') . '/' . ltrim($path, '/');
 }
+
+function order_statuses_map(): array {
+    return [
+        'new'      => 'Новый',
+        'pending'  => 'Ожидает',
+        'paid'     => 'Оплачен',
+        'shipped'  => 'Отправлен',
+        'canceled' => 'Отменён',
+        'refunded' => 'Возврат',
+    ];
+}

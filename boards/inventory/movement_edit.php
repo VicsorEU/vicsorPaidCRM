@@ -3,20 +3,19 @@ require_once dirname(__DIR__, 2) . '/bootstrap.php';
 requireLogin(); $active='inventory';
 
 $id=(int)($_GET['id']??0); global $pdo;
+$m=$pdo->prepare("SELECT * FROM crm_stock_moves WHERE id=:id"); $m->execute([':id'=>$id]); $mv=$m->fetch();
+if(!$mv){http_response_code(404);exit('Not found');}
 
-$m=$pdo->prepare("SELECT * FROM crm_stock_moves WHERE id=:id"); $m->execute([':id'=>$id]);
-$mv=$m->fetch(); if(!$mv){http_response_code(404);exit('Not found');}
-$it=$pdo->prepare("SELECT * FROM crm_stock_move_items WHERE move_id=:id ORDER BY id"); $it->execute([':id'=>$id]); $items=$it->fetchAll();
+$it=$pdo->prepare("SELECT * FROM crm_stock_move_items WHERE move_id=:id ORDER BY id");
+$it->execute([':id'=>$id]); $items=$it->fetchAll();
+
 $ware=$pdo->query("SELECT id,name FROM crm_warehouses ORDER BY name")->fetchAll();
-
 $editable = $mv['doc_type']!=='adjust'; // корректировку не редактируем
+$UNIT_OPTIONS = ['шт','упак','кг','г','л','м','см','м2','м3','час','компл'];
+$isPickFromStock = in_array($mv['doc_type'],['out','transfer'], true);
 
-require APP_ROOT.'/inc/app_header.php';
-?>
-<div class="app">
-    <?php require APP_ROOT.'/inc/app_sidebar.php'; ?>
-    <main class="main">
-        <?php require APP_ROOT.'/inc/app_topbar.php'; ?>
+require APP_ROOT.'/inc/app_header.php'; ?>
+<div class="app"><?php require APP_ROOT.'/inc/app_sidebar.php'; ?><main class="main"><?php require APP_ROOT.'/inc/app_topbar.php'; ?>
         <section class="content">
             <?= flash_render() ?>
 
@@ -31,23 +30,20 @@ require APP_ROOT.'/inc/app_header.php';
                             <div><label>Со склада</label>
                                 <select name="src_warehouse_id" <?= $editable?'':'disabled' ?>>
                                     <?php foreach($ware as $w): $sel=$w['id']==$mv['src_warehouse_id']?' selected':''; ?>
-                                        <option value="<?= (int)$w['id'] ?>"<?= $sel ?>><?= htmlspecialchars($w['name']) ?></option>
-                                    <?php endforeach; ?>
+                                        <option value="<?= (int)$w['id'] ?>"<?= $sel ?>><?= htmlspecialchars($w['name']) ?></option><?php endforeach; ?>
                                 </select>
                             </div>
                             <div><label>На склад</label>
                                 <select name="dest_warehouse_id" <?= $editable?'':'disabled' ?>>
                                     <?php foreach($ware as $w): $sel=$w['id']==$mv['dest_warehouse_id']?' selected':''; ?>
-                                        <option value="<?= (int)$w['id'] ?>"<?= $sel ?>><?= htmlspecialchars($w['name']) ?></option>
-                                    <?php endforeach; ?>
+                                        <option value="<?= (int)$w['id'] ?>"<?= $sel ?>><?= htmlspecialchars($w['name']) ?></option><?php endforeach; ?>
                                 </select>
                             </div>
                         <?php else: ?>
                             <div><label>Склад</label>
                                 <select name="warehouse_id" <?= $editable?'':'disabled' ?>>
                                     <?php foreach($ware as $w): $sel=$w['id']==$mv['warehouse_id']?' selected':''; ?>
-                                        <option value="<?= (int)$w['id'] ?>"<?= $sel ?>><?= htmlspecialchars($w['name']) ?></option>
-                                    <?php endforeach; ?>
+                                        <option value="<?= (int)$w['id'] ?>"<?= $sel ?>><?= htmlspecialchars($w['name']) ?></option><?php endforeach; ?>
                                 </select>
                             </div>
                             <div><label>Статус</label><input disabled value="Проведен"></div>
@@ -64,23 +60,17 @@ require APP_ROOT.'/inc/app_header.php';
                     </div>
                 </div>
 
-                <?php $isPick = in_array($mv['doc_type'],['out','transfer'], true); ?>
                 <div class="card" style="margin-top:12px;">
                     <h3 style="margin:0 0 12px;">Позиции</h3>
-                    <table
-                            class="items-grid"
-                            id="mvItems"
-                            data-mode="<?= $isPick ? 'pick' : 'free' ?>"
-                            data-api-instock="<?= url('boards/api/instock.php') ?>"
-                            data-doc-type="<?= htmlspecialchars($mv['doc_type']) ?>"
-                    >
+                    <table class="items-grid" id="mvItems"
+                           data-mode="<?= $isPickFromStock ? 'pick' : 'free' ?>"
+                           data-api-catalog="<?= htmlspecialchars(url('boards/api/products.php')) ?>"
+                           data-api-instock="<?= htmlspecialchars(url('boards/api/instock.php')) ?>"
+                           data-units='<?= json_encode($UNIT_OPTIONS, JSON_UNESCAPED_UNICODE) ?>'>
                         <thead>
                         <tr>
-                            <?php if ($isPick): ?>
-                                <th>Товар (из наличия)</th>
-                            <?php else: ?>
-                                <th>SKU</th><th>Наименование</th>
-                            <?php endif; ?>
+                            <th><?= $isPickFromStock ? 'Товар (из наличия)' : 'Товар (из каталога)' ?></th>
+                            <th>Ед.</th>
                             <th>Кол-во</th>
                             <th>Цена</th>
                             <th>Сумма</th>
@@ -88,29 +78,36 @@ require APP_ROOT.'/inc/app_header.php';
                         </tr>
                         </thead>
                         <tbody>
-                        <?php if ($isPick): foreach($items as $r): ?>
+                        <?php foreach($items as $it): ?>
                             <tr>
-                                <td>
-                                    <select class="prodsel" name="item_product_id[]" data-selected="<?= (int)$r['product_id'] ?>" <?= $editable?'':'disabled' ?>></select>
-                                    <input type="hidden" name="item_name[]" value="<?= htmlspecialchars($r['name']) ?>">
-                                    <input type="hidden" name="item_sku[]"  value="<?= htmlspecialchars($r['sku'] ?? '') ?>">
-                                    <div class="muted" style="font-size:12px;color:#6b778c;margin-top:6px;">Доступно: <b class="avail">—</b></div>
+                                <td class="product-picker">
+                                    <input class="product-search" placeholder="Поиск товара" autocomplete="off"
+                                           value="<?= htmlspecialchars(($it['sku'] ? $it['sku'].' — ' : '') . $it['name']) ?>" <?= $editable?'':'readonly' ?>>
+                                    <input type="hidden" name="item_product_id[]" value="<?= (int)$it['product_id'] ?>">
+                                    <input type="hidden" name="item_name[]" value="<?= htmlspecialchars($it['name']) ?>">
+                                    <input type="hidden" name="item_sku[]"  value="<?= htmlspecialchars($it['sku'] ?? '') ?>">
+                                    <div class="picker-list" hidden></div>
+                                    <?php if($isPickFromStock): ?>
+                                        <div class="muted" style="font-size:12px;color:#6b778c;margin-top:6px;">Доступно: <b class="avail">—</b></div>
+                                    <?php else: ?>
+                                        <div class="muted" style="font-size:12px;color:#6b778c;margin-top:6px;">SKU: <b class="sku-out"><?= htmlspecialchars($it['sku'] ?? '—') ?></b></div>
+                                    <?php endif; ?>
                                 </td>
-                                <td style="width:120px;"><input name="item_qty[]" type="number" step="0.001" min="0" value="<?= number_format((float)$r['qty'],3,'.','') ?>" <?= $editable?'':'readonly' ?>></td>
-                                <td style="width:140px;"><input name="item_price[]" type="number" step="0.01" min="0" value="<?= number_format((float)$r['unit_price'],2,'.','') ?>" <?= $editable?'':'readonly' ?>></td>
-                                <td style="width:140px;" class="line-total"><?= number_format((float)$r['line_total'],2,'.','') ?></td>
+                                <td style="width:130px;">
+                                    <select name="item_unit[]" <?= $editable?'':'disabled' ?>>
+                                        <?php $curUnit = $it['unit'] ?? 'шт';
+                                        foreach ($UNIT_OPTIONS as $u) {
+                                            $sel = ($u===$curUnit)?' selected':'';
+                                            echo '<option value="'.htmlspecialchars($u).'"'.$sel.'>'.htmlspecialchars($u).'</option>';
+                                        } ?>
+                                    </select>
+                                </td>
+                                <td style="width:120px;"><input name="qty[]" type="number" step="0.001" min="0" value="<?= htmlspecialchars((float)$it['qty']) ?>" required <?= $editable?'':'readonly' ?>></td>
+                                <td style="width:140px;"><input name="price[]" type="number" step="0.01" min="0" value="<?= htmlspecialchars(number_format((float)$it['unit_price'],2,'.','')) ?>" <?= $editable?'':'readonly' ?>></td>
+                                <td style="width:140px;" class="line-total"><?= number_format((float)$it['line_total'],2,'.','') ?></td>
                                 <td style="width:60px;"><?= $editable?'<a href="#" class="btn" data-remove>×</a>':'' ?></td>
                             </tr>
-                        <?php endforeach; else: foreach($items as $r): ?>
-                            <tr>
-                                <td style="width:140px;"><input name="item_sku[]" value="<?= htmlspecialchars($r['sku'] ?? '') ?>" <?= $editable?'':'readonly' ?>></td>
-                                <td><input name="item_name[]" value="<?= htmlspecialchars($r['name']) ?>" required <?= $editable?'':'readonly' ?>></td>
-                                <td style="width:120px;"><input name="item_qty[]" type="number" step="0.001" min="0" value="<?= number_format((float)$r['qty'],3,'.','') ?>" required <?= $editable?'':'readonly' ?>></td>
-                                <td style="width:140px;"><input name="item_price[]" type="number" step="0.01" min="0" value="<?= number_format((float)$r['unit_price'],2,'.','') ?>" <?= $editable?'':'readonly' ?>></td>
-                                <td style="width:140px;" class="line-total"><?= number_format((float)$r['line_total'],2,'.','') ?></td>
-                                <td style="width:60px;"><?= $editable?'<a href="#" class="btn" data-remove>×</a>':'' ?></td>
-                            </tr>
-                        <?php endforeach; endif; ?>
+                        <?php endforeach; ?>
                         </tbody>
                     </table>
                     <?php if($editable): ?><div class="items-actions"><a class="btn" href="#" id="addItem">+ Добавить</a></div><?php endif; ?>
@@ -120,11 +117,14 @@ require APP_ROOT.'/inc/app_header.php';
                 <div class="actions" style="margin-top:12px;">
                     <?php if($editable): ?><button class="btn primary" type="submit">Сохранить</button><?php endif; ?>
                     <a class="btn" href="<?= url('boards/inventory/movements.php') ?>">Назад</a>
+                    <a class="btn print" target="_blank" href="<?= url('boards/inventory/print_move.php?id='.(int)$mv['id']) ?>">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6v-7Z" stroke="currentColor" stroke-width="1.6"/></svg>
+                        Печать
+                    </a>
+
                 </div>
             </form>
-
-        </section>
-    </main>
-</div>
+        </section></main></div>
+<script src="<?= asset('js/movement-picker.js') ?>"></script>
 <script src="<?= asset('js/movement.js') ?>"></script>
 <?php require APP_ROOT.'/inc/app_footer.php'; ?>

@@ -3,7 +3,7 @@
 ?>
 <aside class="sidebar">
     <div class="brand">
-        <i class="logo"></i><span>KeyCRM</span>
+        <img class="logo" src="<?= url('assets/img/vicsor_logo.svg') ?>" alt=""><span>VicsorCRM</span>
     </div>
     <nav class="nav">
         <a<?= active_link($active,'dashboard') ?> href="<?= url('index.php') ?>">
@@ -28,9 +28,27 @@
             </svg>
             <span>Склады</span>
         </a>
+        <a<?= active_link($active,'warehouses') ?> href="<?= url('boards/products/categories.php') ?>">
+            <svg class="ico" viewBox="0 0 24 24" fill="none">
+                <path d="M3 9l9-6 9 6v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9z" stroke="currentColor" stroke-width="1.6"/>
+            </svg>
+            <span>Категории</span>
+        </a>
+        <a<?= active_link($active,'warehouses') ?> href="<?= url('boards/products/attributes.php') ?>">
+            <svg class="ico" viewBox="0 0 24 24" fill="none">
+                <path d="M3 9l9-6 9 6v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9z" stroke="currentColor" stroke-width="1.6"/>
+            </svg>
+            <span>Атрибуты</span>
+        </a>
         <a<?= active_link($active,'customers') ?> href="<?= url('boards/customer/customers.php') ?>">
             <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/><path d="M20 21a8 8 0 1 0-16 0" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
             <span>Клиенты</span>
+        </a>
+        <a<?= active_link($active,'tasks') ?> href="<?= url('boards/tasks/kanban.php') ?>">
+            <svg class="ico" viewBox="0 0 24 24" fill="none">
+                <path d="M5 6h14M5 12h14M5 18h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span>Задачи</span>
         </a>
         <a<?= active_link($active,'analytics') ?> href="#">
             <svg class="ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M7 12h10M12 7v10" stroke="currentColor" stroke-width="1.6"/></svg>

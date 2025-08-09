@@ -1,31 +1,60 @@
-<?php // boards/products/product_save.php
+<?php
 require_once dirname(__DIR__, 2) . '/bootstrap.php';
 requireLogin(); require_csrf();
 global $pdo;
 
-$id   = (int)($_POST['id'] ?? 0);
-$sku  = trim($_POST['sku'] ?? '');
-$name = trim($_POST['name'] ?? '');
-$barcode = trim($_POST['barcode'] ?? '');
-$unit = trim($_POST['unit'] ?? 'шт');
-$price = (float)str_replace(',','.', $_POST['price'] ?? 0);
-$cost  = (float)str_replace(',','.', $_POST['cost_price'] ?? 0);
+function pick_col(PDO $pdo, string $table, array $cands): ?string {
+    $st=$pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=:t");
+    $st->execute([':t'=>strtolower($table)]);
+    $cols = array_map('strtolower', array_column($st->fetchAll(PDO::FETCH_ASSOC),'column_name'));
+    foreach ($cands as $c) if (in_array(strtolower($c),$cols,true)) return $c;
+    return null;
+}
 
-if ($sku==='' || $name==='') { flash('err','Заполните SKU и Название'); header('Location: '.($id?url('boards/products/product_edit.php?id='.$id):url('boards/products/product_new.php'))); exit; }
+$tbl='crm_products';
+$nameCol  = pick_col($pdo,$tbl,['name','title','product_name']);
+$skuCol   = pick_col($pdo,$tbl,['sku','article','code']);
+$priceCol = pick_col($pdo,$tbl,['price','base_price','cost']);
+
+$id = (int)($_POST['id'] ?? 0);
+
+$fields = [
+    'short_description' => trim((string)($_POST['short_description'] ?? '')),
+    'description'       => trim((string)($_POST['description'] ?? '')),
+];
+if ($nameCol)  $fields[$nameCol]  = trim((string)($_POST['name'] ?? ''));
+if ($skuCol)   $fields[$skuCol]   = trim((string)($_POST['sku'] ?? ''));
+if ($priceCol) $fields[$priceCol] = ($_POST['price'] === '' ? null : (float)$_POST['price']);
 
 try {
-    if ($id) {
-        $sql = "UPDATE crm_products SET sku=:sku, name=:name, barcode=:barcode, unit=:unit, price=:price, cost_price=:cost WHERE id=:id";
-        $pdo->prepare($sql)->execute([':sku'=>$sku,':name'=>$name,':barcode'=>$barcode,':unit'=>$unit,':price'=>$price,':cost'=>$cost,':id'=>$id]);
-        flash('ok','Товар обновлён.');
-        header('Location: '.url('boards/products/product_edit.php?id='.$id)); exit;
+    $pdo->beginTransaction();
+
+    if ($id>0) {
+        $sets=[]; $params=[':id'=>$id];
+        foreach ($fields as $k=>$v){ $sets[]="$k=:$k"; $params[":$k"]=$v; }
+        $sql="UPDATE $tbl SET ".implode(', ',$sets).", updated_at=now() WHERE id=:id";
+        $st=$pdo->prepare($sql); $st->execute($params);
     } else {
-        $sql = "INSERT INTO crm_products (sku,name,barcode,unit,price,cost_price) VALUES (:sku,:name,:barcode,:unit,:price,:cost)";
-        $pdo->prepare($sql)->execute([':sku'=>$sku,':name'=>$name,':barcode'=>$barcode,':unit'=>$unit,':price'=>$price,':cost'=>$cost]);
-        flash('ok','Товар создан.');
-        header('Location: '.url('boards/products/products.php')); exit;
+        // создаём
+        $cols=[]; $vals=[]; $params=[];
+        foreach ($fields as $k=>$v){ $cols[]=$k; $vals[]=":$k"; $params[":$k"]=$v; }
+        if (!$cols) { $cols=['short_description']; $vals=['NULL']; } // fallback
+        $sql="INSERT INTO $tbl (".implode(',',$cols).") VALUES (".implode(',',$vals).") RETURNING id";
+        $st=$pdo->prepare($sql); $st->execute($params); $id=(int)$st->fetchColumn();
     }
+
+    // категории
+    $cat_ids = array_map('intval', $_POST['cat_ids'] ?? []);
+    $pdo->prepare("DELETE FROM crm_product_category_map WHERE product_id=:p")->execute([':p'=>$id]);
+    if ($cat_ids) {
+        $ins=$pdo->prepare("INSERT INTO crm_product_category_map(product_id,category_id) VALUES (:p,:c)");
+        foreach ($cat_ids as $cid) $ins->execute([':p'=>$id,':c'=>$cid]);
+    }
+
+    $pdo->commit();
+    flash('ok','Товар сохранён');
 } catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
     flash('err','Ошибка: '.$e->getMessage());
-    header('Location: '.($id?url('boards/products/product_edit.php?id='.$id):url('boards/products/product_new.php'))); exit;
 }
+header('Location: '.url('boards/products/product_edit.php?id='.$id)); exit;

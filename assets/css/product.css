@@ -1,0 +1,9 @@
+.cat-checklist { list-style:none; padding-left:18px; }
+.cat-checklist > li { margin:4px 0; }
+.image-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap:12px; }
+.image-item { background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
+.image-item img { width:100%; height:140px; object-fit:cover; display:block; }
+.image-actions { display:flex; gap:6px; padding:8px; align-items:center; }
+.tag { background:#e0f2fe; color:#075985; border-radius:999px; padding:2px 8px; font-size:12px; }
+.btn.sm { padding:4px 8px; font-size:12px; }
+.btn.danger { background:#fee2e2; color:#991b1b; }

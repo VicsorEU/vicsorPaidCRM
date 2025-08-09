@@ -203,3 +203,60 @@ canvas{ width:100%; height:100%; display:block; }
 .totals .grid input, .totals .grid select, .totals .grid textarea{
     width:100%; padding:10px; border:1px solid var(--border); border-radius:10px; background:#fff; font-size:14px;
 }
+
+/* Поисковый селект (product-picker) */
+.product-picker { position: relative; }
+.product-picker .product-search {
+    width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font-size: 14px;
+}
+.product-picker.open .product-search { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+.picker-list {
+    position: absolute; left: 0; right: 0; top: calc(100% - 10px);
+    background: #fff; border: 1px solid var(--border); border-top: 0;
+    border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
+    max-height: 260px; overflow: auto; z-index: 30;
+    box-shadow: 0 10px 20px rgba(20,20,20,.05);
+}
+.picker-item { padding: 10px 12px; cursor: pointer; }
+.picker-item:hover { background: #f6f8fb; }
+.picker-item .pi-top { font-size: 14px; }
+.picker-item .pi-sub { font-size: 12px; color: #6b778c; margin-top: 2px; }
+
+/* Badges */
+.badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; line-height:18px; background:#eef2f7; color:#334155; border:1px solid #e5e9f1; }
+.badge.out { background:#fff1f2; color:#9f1239; border-color:#ffe4e6; }         /* списание */
+.badge.in { background:#ecfdf5; color:#065f46; border-color:#d1fae5; }          /* возврат/приход */
+.badge.transfer { background:#eff6ff; color:#1d4ed8; border-color:#dbeafe; }     /* перемещение */
+.badge.adjust { background:#fefce8; color:#854d0e; border-color:#fef08a; }       /* корректировка */
+.badge.order { background:#f1f5f9; color:#0f172a; border-color:#e2e8f0; }        /* по заказу */
+.badge.cancel { background:#fef2f2; color:#991b1b; border-color:#fee2e2; }       /* отмена */
+
+.btn.print { display:inline-flex; align-items:center; gap:8px; }
+.btn.print svg { width:16px; height:16px; }
+
+/* Подсветка ошибки количества (из movement.js) */
+input.warn { border-color:#c00!important; box-shadow:0 0 0 3px rgba(204,0,0,.08); }
+
+/* Kanban */
+.kanban { display:flex; gap:12px; overflow:auto; padding-bottom:8px; }
+.kanban-col { background:#f8fafc; border:1px solid var(--border); border-radius:12px; min-width:280px; max-width:320px; display:flex; flex-direction:column; }
+.kanban-col-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--border); font-weight:600; }
+.kanban-col-head .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.kanban-col-body { padding:10px; display:flex; flex-direction:column; gap:8px; min-height:80px; }
+.task-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:10px; cursor:grab; box-shadow:0 1px 0 rgba(0,0,0,.03); }
+.task-card.dragging { opacity:.6; border-style:dashed; }
+.task-title { font-weight:600; font-size:14px; margin-bottom:4px; }
+.task-desc { font-size:13px; color:#475569; }
+.task-meta .meta { font-size:12px; color:#64748b; border:1px solid #e5e7eb; padding:1px 6px; border-radius:999px; margin-right:6px; }
+
+.kanban-add { border-top:1px dashed var(--border); margin-top:auto; padding:10px; display:flex; gap:8px; }
+.kanban-add input[type="text"] { flex:1; }
+
+/* Modal */
+.modal[hidden] { display: none; }
+.modal { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.35); }
+.modal-dialog { position: relative; background: #fff; border: 1px solid var(--border); border-radius: 12px; width: 560px; max-width: calc(100% - 32px); padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+
+.meta.prio { font-weight:600; }

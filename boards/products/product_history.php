@@ -77,6 +77,8 @@ require APP_ROOT.'/inc/app_header.php';
                                 <?php if ($r['order_id']): ?>
                                     <span class="muted" style="color:#6b778c"> / заказ #<?= (int)$r['order_id'] ?></span>
                                 <?php endif; ?>
+                                <span class="badge <?= htmlspecialchars($r['doc_type']) ?>"><?= ['in'=>'Приход','out'=>'Расход','transfer'=>'Перемещение','adjust'=>'Корректировка'][$r['doc_type']] ?></span>
+
                             </td>
                             <td><?= htmlspecialchars($r['wh_title'] ?? '') ?></td>
                             <td><?= ($delta>=0?'+':'').number_format($delta,3,'.',' ') ?></td>

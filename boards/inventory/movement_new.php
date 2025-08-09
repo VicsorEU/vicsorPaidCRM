@@ -8,12 +8,11 @@ if(!in_array($type,['in','out','transfer','adjust'],true)) $type='in';
 global $pdo;
 $ware = $pdo->query("SELECT id, name FROM crm_warehouses ORDER BY name")->fetchAll();
 
+$UNIT_OPTIONS = ['шт','упак','кг','г','л','м','см','м2','м3','час','компл'];
+$isPickFromStock = in_array($type,['out','transfer'], true); // расход/перемещение — из наличия
 require APP_ROOT.'/inc/app_header.php';
 ?>
-<div class="app">
-    <?php require APP_ROOT.'/inc/app_sidebar.php'; ?>
-    <main class="main">
-        <?php require APP_ROOT.'/inc/app_topbar.php'; ?>
+<div class="app"><?php require APP_ROOT.'/inc/app_sidebar.php'; ?><main class="main"><?php require APP_ROOT.'/inc/app_topbar.php'; ?>
         <section class="content">
             <?= flash_render() ?>
 
@@ -28,18 +27,14 @@ require APP_ROOT.'/inc/app_header.php';
                                 <label>Со склада</label>
                                 <select name="src_warehouse_id" required>
                                     <option value="">— выберите —</option>
-                                    <?php foreach($ware as $w): ?>
-                                        <option value="<?= (int)$w['id'] ?>"><?= htmlspecialchars($w['name']) ?></option>
-                                    <?php endforeach; ?>
+                                    <?php foreach($ware as $w): ?><option value="<?= (int)$w['id'] ?>"><?= htmlspecialchars($w['name']) ?></option><?php endforeach; ?>
                                 </select>
                             </div>
                             <div>
                                 <label>На склад</label>
                                 <select name="dest_warehouse_id" required>
                                     <option value="">— выберите —</option>
-                                    <?php foreach($ware as $w): ?>
-                                        <option value="<?= (int)$w['id'] ?>"><?= htmlspecialchars($w['name']) ?></option>
-                                    <?php endforeach; ?>
+                                    <?php foreach($ware as $w): ?><option value="<?= (int)$w['id'] ?>"><?= htmlspecialchars($w['name']) ?></option><?php endforeach; ?>
                                 </select>
                             </div>
                         <?php else: ?>
@@ -47,15 +42,10 @@ require APP_ROOT.'/inc/app_header.php';
                                 <label>Склад</label>
                                 <select name="warehouse_id" required>
                                     <option value="">— выберите —</option>
-                                    <?php foreach($ware as $w): ?>
-                                        <option value="<?= (int)$w['id'] ?>"><?= htmlspecialchars($w['name']) ?></option>
-                                    <?php endforeach; ?>
+                                    <?php foreach($ware as $w): ?><option value="<?= (int)$w['id'] ?>"><?= htmlspecialchars($w['name']) ?></option><?php endforeach; ?>
                                 </select>
                             </div>
-                            <div>
-                                <label>Статус</label>
-                                <input disabled value="Проведен">
-                            </div>
+                            <div><label>Статус</label><input disabled value="Проведен"></div>
                         <?php endif; ?>
                     </div>
 
@@ -69,36 +59,27 @@ require APP_ROOT.'/inc/app_header.php';
                     </div>
                 </div>
 
-                <?php $isPickFromStock = in_array($type,['out','transfer'], true); ?>
                 <div class="card" style="margin-top:12px;">
                     <h3 style="margin:0 0 12px;">Позиции</h3>
 
-                    <table
-                            class="items-grid"
-                            id="mvItems"
-                            data-mode="<?= $isPickFromStock ? 'pick' : 'free' ?>"
-                            data-api-instock="<?= url('boards/api/instock.php') ?>"
-                            data-doc-type="<?= htmlspecialchars($type) ?>"
-                    >
+                    <table class="items-grid" id="mvItems"
+                           data-mode="<?= $isPickFromStock ? 'pick' : 'free' ?>"
+                           data-api-catalog="<?= htmlspecialchars(url('boards/api/products.php')) ?>"
+                           data-api-instock="<?= htmlspecialchars(url('boards/api/instock.php')) ?>"
+                           data-units='<?= json_encode($UNIT_OPTIONS, JSON_UNESCAPED_UNICODE) ?>'>
                         <thead>
                         <tr>
-                            <?php if ($isPickFromStock): ?>
-                                <th>Товар (из наличия)</th>
-                            <?php else: ?>
-                                <th>SKU</th><th>Наименование</th>
-                            <?php endif; ?>
+                            <th><?= $isPickFromStock ? 'Товар (из наличия)' : 'Товар (из каталога)' ?></th>
+                            <th>Ед.</th>
                             <th>Кол-во</th>
                             <th>Цена</th>
                             <th>Сумма</th>
                             <th></th>
                         </tr>
                         </thead>
-                        <tbody></tbody>
+                        <tbody><!-- строки добавит JS --></tbody>
                     </table>
-
-                    <div class="items-actions">
-                        <a href="#" class="btn" id="addItem">+ Добавить</a>
-                    </div>
+                    <div class="items-actions"><a class="btn" href="#" id="addItem">+ Добавить</a></div>
                     <div style="margin-top:8px;color:#6b778c;">Итого: <b><span id="docTotal">0.00</span></b></div>
                 </div>
 
@@ -107,9 +88,7 @@ require APP_ROOT.'/inc/app_header.php';
                     <a class="btn" href="<?= url('boards/inventory/movements.php') ?>">Отмена</a>
                 </div>
             </form>
-
-        </section>
-    </main>
-</div>
+        </section></main></div>
+<script src="<?= asset('js/movement-picker.js') ?>"></script>
 <script src="<?= asset('js/movement.js') ?>"></script>
 <?php require APP_ROOT.'/inc/app_footer.php'; ?>

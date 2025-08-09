@@ -20,6 +20,7 @@ $clients = $pdo->query("SELECT id, full_name, email FROM crm_customers ORDER BY 
 $ware    = $pdo->query("SELECT id, name FROM crm_warehouses ORDER BY name")->fetchAll();
 
 $statuses = ['new'=>'Новый','pending'=>'Ожидает','paid'=>'Оплачен','shipped'=>'Отправлен','canceled'=>'Отменён','refunded'=>'Возврат'];
+$UNIT_OPTIONS = ['шт','упак','кг','г','л','м','см','м2','м3','час','компл'];
 
 require APP_ROOT . '/inc/app_header.php';
 ?>
@@ -89,11 +90,14 @@ require APP_ROOT . '/inc/app_header.php';
 
                 <div class="card" style="margin-top:12px;">
                     <h3 style="margin:0 0 12px;">Позиции</h3>
-                    <table class="items-grid" id="itemsTable">
+
+                    <table class="items-grid" id="itemsTable"
+                           data-api="<?= htmlspecialchars(url('boards/api/products.php')) ?>"
+                           data-units='<?= json_encode($UNIT_OPTIONS, JSON_UNESCAPED_UNICODE) ?>'>
                         <thead>
                         <tr>
-                            <th>Наименование</th>
-                            <th>SKU</th>
+                            <th>Товар</th>
+                            <th>Ед.</th>
                             <th>Кол-во</th>
                             <th>Цена</th>
                             <th>Сумма</th>
@@ -103,16 +107,35 @@ require APP_ROOT . '/inc/app_header.php';
                         <tbody>
                         <?php foreach ($items as $it): ?>
                             <tr>
-                                <td><input name="item_name[]" value="<?= htmlspecialchars($it['product_name']) ?>" required></td>
-                                <td style="width:140px;"><input name="item_sku[]" value="<?= htmlspecialchars($it['sku'] ?? '') ?>"></td>
+                                <td class="product-picker">
+                                    <input class="product-search" placeholder="Поиск товара (SKU/название)" autocomplete="off"
+                                           value="<?= htmlspecialchars(($it['sku'] ? $it['sku'].' — ' : '') . $it['product_name']) ?>">
+                                    <input type="hidden" name="item_product_id[]" value="<?= (int)($it['product_id'] ?? 0) ?>">
+                                    <input type="hidden" name="item_name[]" value="<?= htmlspecialchars($it['product_name']) ?>">
+                                    <input type="hidden" name="item_sku[]"  value="<?= htmlspecialchars($it['sku'] ?? '') ?>">
+                                    <div class="picker-list" hidden></div>
+                                    <div class="muted" style="font-size:12px;color:#6b778c;margin-top:6px;">SKU: <b class="sku-out"><?= htmlspecialchars($it['sku'] ?? '—') ?></b></div>
+                                </td>
+                                <td style="width:130px;">
+                                    <select name="item_unit[]">
+                                        <?php
+                                        $curUnit = $it['unit'] ?? 'шт';
+                                        foreach ($UNIT_OPTIONS as $u) {
+                                            $sel = ($u === $curUnit) ? ' selected' : '';
+                                            echo '<option value="'.htmlspecialchars($u).'"'.$sel.'>'.htmlspecialchars($u).'</option>';
+                                        }
+                                        ?>
+                                    </select>
+                                </td>
                                 <td style="width:120px;"><input name="item_qty[]" type="number" step="0.001" min="0" value="<?= htmlspecialchars((float)$it['quantity']) ?>" required></td>
-                                <td style="width:140px;"><input name="item_price[]" type="number" step="0.01" min="0" value="<?= htmlspecialchars((float)$it['unit_price']) ?>"></td>
+                                <td style="width:140px;"><input name="item_price[]" type="number" step="0.01" min="0" value="<?= htmlspecialchars(number_format((float)$it['unit_price'],2,'.','')) ?>"></td>
                                 <td style="width:140px;" class="line-total"><?= number_format((float)$it['total'],2,'.','') ?></td>
                                 <td style="width:60px;"><a href="#" data-remove class="btn">×</a></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
                     </table>
+
                     <div class="items-actions">
                         <a href="#" class="btn" id="addItem">+ Добавить позицию</a>
                     </div>
@@ -154,11 +177,32 @@ require APP_ROOT . '/inc/app_header.php';
                 <div class="actions" style="margin-top:12px;">
                     <button class="btn primary" type="submit">Сохранить</button>
                     <a class="btn" href="<?= url('boards/order/orders.php') ?>">Назад к списку</a>
+                    <?php
+                    $moveOut = $pdo->prepare("SELECT id FROM crm_stock_moves WHERE order_id=:oid AND doc_type='out'");
+                    $moveOut->execute([':oid'=>$order['id']]); $moveOutId = (int)($moveOut->fetchColumn() ?: 0);
+                    $moveIn  = $pdo->prepare("SELECT id FROM crm_stock_moves WHERE order_id=:oid AND doc_type='in'");
+                    $moveIn->execute([':oid'=>$order['id']]); $moveInId = (int)($moveIn->fetchColumn() ?: 0);
+                    ?>
+                    <?php if ($moveOutId || $moveInId): ?>
+                        <div class="card" style="margin-top:12px;">
+                            <h3 style="margin:0 0 12px;">Печать документов</h3>
+                            <div class="actions">
+                                <?php if ($moveOutId): ?>
+                                    <a class="btn print" target="_blank" href="<?= url('boards/inventory/print_move.php?id='.$moveOutId) ?>">Накладная (списание)</a>
+                                <?php endif; ?>
+                                <?php if ($moveInId): ?>
+                                    <a class="btn print" target="_blank" href="<?= url('boards/inventory/print_move.php?id='.$moveInId) ?>">Акт возврата</a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
                 </div>
             </form>
 
         </section>
     </main>
 </div>
-<script src="<?= url('assets/js/order.js') ?>"></script>
+<script src="<?= asset('js/product-picker.js') ?>"></script>
+<script src="<?= asset('js/order.js') ?>"></script>
 <?php require APP_ROOT . '/inc/app_footer.php'; ?>

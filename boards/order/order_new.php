@@ -7,6 +7,9 @@ global $pdo;
 $clients = $pdo->query("SELECT id, full_name, email FROM crm_customers ORDER BY created_at DESC LIMIT 100")->fetchAll();
 $ware    = $pdo->query("SELECT id, name FROM crm_warehouses ORDER BY name")->fetchAll();
 
+// список единиц (можешь менять)
+$UNIT_OPTIONS = ['шт','упак','кг','г','л','м','см','м2','м3','час','компл'];
+
 require APP_ROOT . '/inc/app_header.php';
 ?>
 <div class="app">
@@ -77,19 +80,23 @@ require APP_ROOT . '/inc/app_header.php';
 
                 <div class="card" style="margin-top:12px;">
                     <h3 style="margin:0 0 12px;">Позиции</h3>
-                    <table class="items-grid" id="itemsTable">
+
+                    <table class="items-grid" id="itemsTable"
+                           data-api="<?= htmlspecialchars(url('boards/api/products.php')) ?>"
+                           data-units='<?= json_encode($UNIT_OPTIONS, JSON_UNESCAPED_UNICODE) ?>'>
                         <thead>
                         <tr>
-                            <th>Наименование</th>
-                            <th>SKU</th>
+                            <th>Товар</th>
+                            <th>Ед.</th>
                             <th>Кол-во</th>
                             <th>Цена</th>
                             <th>Сумма</th>
                             <th></th>
                         </tr>
                         </thead>
-                        <tbody></tbody>
+                        <tbody><!-- пусто, строки добавит JS --></tbody>
                     </table>
+
                     <div class="items-actions">
                         <a href="#" class="btn" id="addItem">+ Добавить позицию</a>
                     </div>
@@ -137,5 +144,6 @@ require APP_ROOT . '/inc/app_header.php';
         </section>
     </main>
 </div>
-<script src="<?= url('assets/js/order.js') ?>"></script>
+<script src="<?= asset('js/product-picker.js') ?>"></script>
+<script src="<?= asset('js/order.js') ?>"></script>
 <?php require APP_ROOT . '/inc/app_footer.php'; ?>

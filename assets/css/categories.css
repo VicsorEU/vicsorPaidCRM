@@ -1,0 +1,10 @@
+.cat-tree-wrap { padding: 6px 8px; }
+.cat-tree { list-style: none; padding-left: 18px; margin: 6px 0; }
+.cat-tree > li { margin: 4px 0; }
+.cat-tree .node { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px; display:flex; align-items:center; gap:10px; }
+.cat-tree .node-title { font-weight: 600; }
+.cat-tree .node-actions { margin-left:auto; display:flex; gap:6px; }
+.btn.sm { padding: 4px 8px; font-size: 12px; }
+.btn.danger { background:#fee2e2; color:#991b1b; }
+.drag-handle { cursor:grab; color:#9ca3af; }
+.cat-checklist ul { list-style:none; padding-left: 18px; }
